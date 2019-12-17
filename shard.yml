@@ -1,0 +1,13 @@
+name: any-shiritori
+version: 0.1.0
+
+authors:
+  - typewriter <takuyaxp@gmail.com>
+
+targets:
+  any-shiritori:
+    main: src/any-shiritori.cr
+
+crystal: 0.32.0
+
+license: MIT
