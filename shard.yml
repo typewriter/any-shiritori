@@ -6,7 +6,7 @@ authors:
 
 targets:
   any-shiritori:
-    main: src/any-shiritori.cr
+    main: src/any_shiritori.cr
 
 crystal: 0.32.0
 
