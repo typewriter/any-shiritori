@@ -29,14 +29,22 @@ class SearchProblemSolver
 
   def initialize(words : Array(String))
     @words = words
+    @longest_tree = [] of String
   end
 
   def generate_trees
+    @longest_tree = [] of String
+
     roots = @words.map { |word| Node.new(nil, word) }
     roots.map { |root| generate_tree(root) }
   end
 
   private def generate_tree(tree)
+    if STDOUT.tty? && tree.tree_names.size > @longest_tree.size
+      @longest_tree = tree.tree_names
+      puts "\e[2J\e[0;0HSearching...\n\nSize: #{@longest_tree.size}\nWords: [#{@longest_tree.join(" -> ")}]"
+    end
+
     unused_words = @words - tree.tree_names
     usable_words = unused_words.select { |word| tree.name[-1] == word[0] }
     usable_words.each { |word| tree.append_child(word) }
