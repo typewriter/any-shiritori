@@ -18,13 +18,33 @@ class BranchAndBoundSolver
   end
 
   def solve
+    # Attempt RPk maximize
+
+
     tempfile = File.tempfile("glpk_model.mod") { |file|
       file.puts generate_glpk_model
     }
     result = `glpsol -m #{tempfile.path} -o /dev/stdout`
     tempfile.delete
 
-    puts result
+    generate_x(result)
+  end
+
+  private def sortedV
+    @V.to_a.sort
+  end
+
+  private def generate_x(result)
+    x = {} of String => Int32
+    v = sortedV + ["^", "$"]
+    result.each_line { |line|
+      if line =~ /x\[(\d+),(\d+)\]/
+        node = "#{v[$1.to_i-1]}#{v[$2.to_i-1]}"
+        count = line.gsub(/^\s+/,"").split(/\s+/)[3].to_i
+        x[node] = count if count > 0
+      end
+    }
+    x
   end
 
   private def generate_glpk_model
@@ -52,8 +72,8 @@ class BranchAndBoundSolver
     s.t. ENDRANGE {i in V}: 0 <= x[i,t] <= 1;
     EOM
 
-    @V.each_with_index { |vi, i|
-      @V.each_with_index { |vj, j|
+    sortedV.each_with_index { |vi, i|
+      sortedV.each_with_index { |vj, j|
         model_text += "s.t. F_#{i}_#{j}: 0 <= x[#{i+1},#{j+1}] <= #{(@A["#{vi}#{vj}"]? || [] of String).size};\n"
       }
     }
@@ -63,5 +83,5 @@ class BranchAndBoundSolver
 end
 
 words = File.read(ARGV[0]).chomp.split(/\r\n|\n|\r/)
-BranchAndBoundSolver.new(words).solve
+p BranchAndBoundSolver.new(words).solve
 
