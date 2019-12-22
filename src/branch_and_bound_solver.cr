@@ -1,3 +1,5 @@
+# Solving the Longest Shiritori Problem
+# ref. https://ci.nii.ac.jp/naid/110002768734
 class BranchAndBoundSolver
   def initialize(words : Array(String))
     @A = {} of String => Array(String)
@@ -43,7 +45,7 @@ class BranchAndBoundSolver
     # 制約条件
     s.t. START: sum{j in V} (x[s,j]) = 1;
     s.t. END: sum{i in V} (x[i,t]) = 1;
-    s.t. EQUAL_IOFLOW {i in V}: sum{j in V} (x[i,j]) - sum{j in V} (x[j,i]) = 0;
+    s.t. EQUAL_IOFLOW {i in V}: sum{j in V} (x[i,j])  + x[i,t] - sum{j in V} (x[j,i]) - x[s,i] = 0;
 
     # 制約条件（値範囲）
     s.t. STARTRANGE {j in V}: 0 <= x[s,j] <= 1;
