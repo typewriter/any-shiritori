@@ -16,7 +16,13 @@ class BranchAndBoundSolver
   end
 
   def solve
-    puts generate_glpk_model
+    tempfile = File.tempfile("glpk_model.mod") { |file|
+      file.puts generate_glpk_model
+    }
+    result = `glpsol -m #{tempfile.path} -o /dev/stdout`
+    tempfile.delete
+
+    puts result
   end
 
   private def generate_glpk_model
@@ -26,11 +32,10 @@ class BranchAndBoundSolver
     param t := n+2;
     set V := 1..n;
     set V_ST := 1..n+2;
-    set IJ within {V,V};
-    set IJ_ST within {V_ST,V_ST};
+    # set IJ within {V,V};
+    # set IJ_ST within {V_ST,V_ST};
 
-    param f{IJ};
-    var x{IJ_ST};
+    var x{V_ST,V_ST} >=0;
 
     # 目的変数: 最大化
     maximize Z: sum{i in V} (sum{j in V} (x[i,j]) ) + sum{j in V} (x[s,j]) + sum{i in V} (x[i,t]);
@@ -43,12 +48,11 @@ class BranchAndBoundSolver
     # 制約条件（値範囲）
     s.t. STARTRANGE {j in V}: 0 <= x[s,j] <= 1;
     s.t. ENDRANGE {i in V}: 0 <= x[i,t] <= 1;
-
     EOM
 
     @V.each_with_index { |vi, i|
       @V.each_with_index { |vj, j|
-        model_text += "s.t. F_#{vi}#{vj}: 0 <= x[#{i},#{j}] <= #{(@A["#{vi}#{vj}"]? || [] of String).size};\n"
+        model_text += "s.t. F_#{i}_#{j}: 0 <= x[#{i+1},#{j+1}] <= #{(@A["#{vi}#{vj}"]? || [] of String).size};\n"
       }
     }
 
