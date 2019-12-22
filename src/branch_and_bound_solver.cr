@@ -27,11 +27,38 @@ class BranchAndBoundSolver
     result = `glpsol -m #{tempfile.path} -o /dev/stdout`
     tempfile.delete
 
-    generate_x(result)
+    x = generate_x(result)
+
+    STDERR.puts "RP0"
+    STDERR.puts " edges:   #{x.inspect}"
+    STDERR.puts " linked?: #{!separated?(x)}"
+
+    x
   end
 
   private def sortedV
     @V.to_a.sort
+  end
+
+  private def separated?(x)
+    score = x.map { |k, v| v }.sum
+    linked_score = 0
+
+    stack = ['^']
+    searched = stack.to_set
+
+    while !stack.empty?
+      char = stack.pop
+
+      keys = x.keys.select { |key| key[0] == char }
+      linked_score += keys.map { |key| x[key] }.sum
+
+      next_chars = keys.map { |key| key[-1] }.select { |char| !searched.includes?(char) }
+      stack += next_chars
+      searched += next_chars.to_set
+    end
+
+    score != linked_score
   end
 
   private def generate_x(result)
