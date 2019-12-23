@@ -1,6 +1,41 @@
 # Solving the Longest Shiritori Problem
 # ref. https://ci.nii.ac.jp/naid/110002768734
 class BranchAndBoundSolver
+  class Candidate
+    def initialize(x : Hash(String, Int32), a : Hash(String, Array(String)))
+      @x = x
+      @A = a
+    end
+
+    def score
+      @x.map { |k, v| v }.sum
+    end
+
+    def linked_score
+      value = 0
+
+      stack = ['^']
+      searched = stack.to_set
+
+      while !stack.empty?
+        char = stack.pop
+
+        keys = @x.keys.select { |key| key[0] == char }
+        value += keys.map { |key| @x[key] }.sum
+
+        next_chars = keys.map { |key| key[-1] }.select { |char| !searched.includes?(char) }
+        stack += next_chars
+        searched += next_chars.to_set
+      end
+
+      value
+    end
+
+    def separated?
+      score != linked_score
+    end
+  end
+
   def initialize(words : Array(String))
     @A = {} of String => Array(String)
     @V = Set(Char).new
@@ -20,45 +55,23 @@ class BranchAndBoundSolver
   def solve
     # Attempt RPk maximize
 
-
     tempfile = File.tempfile("glpk_model.mod") { |file|
       file.puts generate_glpk_model
     }
     result = `glpsol -m #{tempfile.path} -o /dev/stdout`
     tempfile.delete
 
-    x = generate_x(result)
+    candidate = Candidate.new(generate_x(result), @A)
 
     STDERR.puts "RP0"
-    STDERR.puts " edges:   #{x.inspect}"
-    STDERR.puts " linked?: #{!separated?(x)}"
+    STDERR.puts " score:   #{candidate.score} (linked: #{candidate.linked_score})"
+    STDERR.puts " linked?: #{!candidate.separated?}"
 
-    x
+    candidate
   end
 
   private def sortedV
     @V.to_a.sort
-  end
-
-  private def separated?(x)
-    score = x.map { |k, v| v }.sum
-    linked_score = 0
-
-    stack = ['^']
-    searched = stack.to_set
-
-    while !stack.empty?
-      char = stack.pop
-
-      keys = x.keys.select { |key| key[0] == char }
-      linked_score += keys.map { |key| x[key] }.sum
-
-      next_chars = keys.map { |key| key[-1] }.select { |char| !searched.includes?(char) }
-      stack += next_chars
-      searched += next_chars.to_set
-    end
-
-    score != linked_score
   end
 
   private def generate_x(result)
@@ -66,9 +79,9 @@ class BranchAndBoundSolver
     v = sortedV + ["^", "$"]
     result.each_line { |line|
       if line =~ /x\[(\d+),(\d+)\]/
-        node = "#{v[$1.to_i-1]}#{v[$2.to_i-1]}"
+        edge = "#{v[$1.to_i-1]}#{v[$2.to_i-1]}"
         count = line.gsub(/^\s+/,"").split(/\s+/)[3].to_i
-        x[node] = count if count > 0
+        x[edge] = count if count > 0
       end
     }
     x
