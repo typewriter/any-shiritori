@@ -64,10 +64,10 @@ class BranchAndBoundSolver
 
     try = 0
     answer = Candidate.new({} of String => Int32, @A)
-    additional_contraints = [] of String
+    additional_constraints = [] of String
     while true
       tempfile = File.tempfile("glpk_model.mod") { |file|
-        file.puts generate_glpk_model(additional_contraints)
+        file.puts generate_glpk_model(additional_constraints)
       }
       result = `glpsol -m #{tempfile.path} -o /dev/stdout`
       tempfile.delete
@@ -93,19 +93,19 @@ class BranchAndBoundSolver
 
       # s,tを含む頂点集合からそれ以外の頂点への制約を追加する
       linked_node_chars = candidate.linked_node_chars
-      no_linked_node_chars = sortedV - linked_node_chars.to_a
+      no_linked_node_chars = sorted_V - linked_node_chars.to_a
 
       constraint = "s.t. BRANCH_#{try}: "
       items      = [] of String
       linked_node_chars.each { |e|
-        i = (sortedV.select { |v| v == e } + [sortedV.size])[0] + 1
+        i = (sorted_V.select { |v| v == e } + [sorted_V.size])[0] + 1
         no_linked_node_chars.each { |f|
-          j = sortedV.select { |v| v == f }[0]
+          j = sorted_V.select { |v| v == f }[0]
           items << "x[#{i},#{j}]"
         }
       }
       constraint = "s.t. BRANCH_#{try}: #{items.join(" + ")} >= 1;"
-      additional_contraints << constraint
+      additional_constraints << constraint
 
       try += 1
     end
@@ -117,13 +117,13 @@ class BranchAndBoundSolver
     answer
   end
 
-  private def sortedV
+  private def sorted_V
     @V.to_a.sort
   end
 
   private def generate_x(result)
     x = {} of String => Int32
-    v = sortedV + ["^", "$"]
+    v = sorted_V + ["^", "$"]
     result.each_line { |line|
       if line =~ /x\[(\d+),(\d+)\]/
         edge = "#{v[$1.to_i-1]}#{v[$2.to_i-1]}"
@@ -159,8 +159,8 @@ class BranchAndBoundSolver
     s.t. ENDRANGE {i in V}: 0 <= x[i,t] <= 1;
     EOM
 
-    sortedV.each_with_index { |vi, i|
-      sortedV.each_with_index { |vj, j|
+    sorted_V.each_with_index { |vi, i|
+      sorted_V.each_with_index { |vj, j|
         model_text += "s.t. F_#{i}_#{j}: 0 <= x[#{i+1},#{j+1}] <= #{(@A["#{vi}#{vj}"]? || [] of String).size};\n"
       }
     }
