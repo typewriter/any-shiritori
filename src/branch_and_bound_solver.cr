@@ -12,6 +12,18 @@ class BranchAndBoundSolver
     end
 
     def linked_score
+      linked[0].as(Int32)
+    end
+
+    def linked_node_chars
+      linked[1].as(Set(Char))
+    end
+
+    def separated?
+      score != linked_score
+    end
+
+    private def linked
       value = 0
 
       stack = ['^']
@@ -28,11 +40,7 @@ class BranchAndBoundSolver
         searched += next_chars.to_set
       end
 
-      value
-    end
-
-    def separated?
-      score != linked_score
+      [value, searched]
     end
   end
 
@@ -48,26 +56,65 @@ class BranchAndBoundSolver
     }
   end
 
-  def answers
-
+  def answer
   end
 
   def solve
     # Attempt RPk maximize
 
-    tempfile = File.tempfile("glpk_model.mod") { |file|
-      file.puts generate_glpk_model
-    }
-    result = `glpsol -m #{tempfile.path} -o /dev/stdout`
-    tempfile.delete
+    try = 0
+    answer = Candidate.new({} of String => Int32, @A)
+    additional_contraints = [] of String
+    while true
+      tempfile = File.tempfile("glpk_model.mod") { |file|
+        file.puts generate_glpk_model(additional_contraints)
+      }
+      result = `glpsol -m #{tempfile.path} -o /dev/stdout`
+      tempfile.delete
 
-    candidate = Candidate.new(generate_x(result), @A)
+      candidate = Candidate.new(generate_x(result), @A)
 
-    STDERR.puts "RP0"
-    STDERR.puts " score:   #{candidate.score} (linked: #{candidate.linked_score})"
-    STDERR.puts " linked?: #{!candidate.separated?}"
+      STDERR.puts "RP#{try}"
+      STDERR.puts " score:   #{candidate.score} (linked: #{candidate.linked_score})"
+      STDERR.puts " linked?: #{!candidate.separated?}"
 
-    candidate
+      break if candidate.score == 0
+
+      if !candidate.separated?
+        answer = candidate if candidate.linked_score > answer.linked_score
+        break
+      end
+
+      break if answer.linked_score > candidate.score
+
+      if candidate.linked_score > answer.linked_score
+        answer = candidate
+      end
+
+      # s,tを含む頂点集合からそれ以外の頂点への制約を追加する
+      linked_node_chars = candidate.linked_node_chars
+      no_linked_node_chars = sortedV - linked_node_chars.to_a
+
+      constraint = "s.t. BRANCH_#{try}: "
+      items      = [] of String
+      linked_node_chars.each { |e|
+        i = (sortedV.select { |v| v == e } + [sortedV.size])[0] + 1
+        no_linked_node_chars.each { |f|
+          j = sortedV.select { |v| v == f }[0]
+          items << "x[#{i},#{j}]"
+        }
+      }
+      constraint = "s.t. BRANCH_#{try}: #{items.join(" + ")} >= 1;"
+      additional_contraints << constraint
+
+      try += 1
+    end
+
+    STDERR.puts "RPmax"
+    STDERR.puts " score:   #{answer.score} (linked: #{answer.linked_score})"
+    STDERR.puts " linked?: #{!answer.separated?}"
+
+    answer
   end
 
   private def sortedV
@@ -87,7 +134,7 @@ class BranchAndBoundSolver
     x
   end
 
-  private def generate_glpk_model
+  private def generate_glpk_model(constraints)
     model_text = <<-EOM
     param n := #{@V.size};
     param s := n+1;
@@ -117,6 +164,8 @@ class BranchAndBoundSolver
         model_text += "s.t. F_#{i}_#{j}: 0 <= x[#{i+1},#{j+1}] <= #{(@A["#{vi}#{vj}"]? || [] of String).size};\n"
       }
     }
+
+    model_text += constraints.join("\n")
 
     model_text += "end;\n"
   end
