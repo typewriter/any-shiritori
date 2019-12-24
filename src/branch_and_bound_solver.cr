@@ -49,7 +49,50 @@ class BranchAndBoundSolver
 
   class RouteMaker
     def self.make(x : Hash(String, Int32), a : Hash(String, Array(String)), sorted_V : Array(Char))
-      pp extract_all_cycle(x, sorted_V)
+      data = extract_all_cycle(x, sorted_V)
+
+      x_remained = data[0].as(Hash(String, Int32)).select { |k, v| v > 0 }.to_h
+      links = data[1].as(Array(String))
+
+      answer = [x_remained.find { |k, v| k[0] == '^' }.not_nil![0][-1].to_s]
+
+      x_remained.delete_if { |k, v| k[0] == '^' }
+      while true
+        next_char = answer[-1][-1]
+        answer += link_closed_path(next_char, links, a)
+
+        x = x_remained.find { |k, v| k[0] == next_char }.not_nil![0]
+        break if x[-1] == '$'
+        answer << a[x].pop
+        x_remained.delete(x)
+      end
+
+      answer.shift
+
+      # validate
+      (answer.size-1).times { |i|
+        raise "Invalid answer: #{answer}" if answer[i][-1] != answer[i+1][0]
+      }
+
+      answer
+    end
+
+    private def self.link_closed_path(next_char : Char, links : Array(String), words : Hash(String, Array(String)))
+      available_links = links.select { |link| link.includes?(next_char) }
+      available_links.each { |link| links.delete(link) }
+
+      answer = [] of String
+
+      available_links.each { |link|
+        link_dup = "#{link}#{link[1..]}"
+        offset   = link.index(next_char).not_nil!
+        (link.size-1).times { |i|
+          answer << words["#{link_dup[i+offset]}#{link_dup[i+1+offset]}"].pop
+          answer += link_closed_path(answer[-1][-1], links, words)
+        }
+      }
+
+      answer
     end
 
     private def self.extract_all_cycle(x : Hash(String, Int32), sorted_V : Array(Char))
@@ -105,7 +148,11 @@ class BranchAndBoundSolver
 
   def answer
     answer = solve
-    RouteMaker.make(answer.x, @A, sorted_V)
+    route = RouteMaker.make(answer.x.dup, @A, sorted_V)
+
+    raise "Invalid answer: #{route}" if route.size + 2 != answer.linked_score
+
+    route
   end
 
   def solve
@@ -162,6 +209,7 @@ class BranchAndBoundSolver
     STDERR.puts "RPmax"
     STDERR.puts " score:   #{answer.score} (linked: #{answer.linked_score})"
     STDERR.puts " linked?: #{!answer.separated?}"
+    STDERR.puts
 
     answer
   end
@@ -221,5 +269,8 @@ class BranchAndBoundSolver
 end
 
 words = File.read(ARGV[0]).chomp.split(/\r\n|\n|\r/)
-p BranchAndBoundSolver.new(words).answer
+answer = BranchAndBoundSolver.new(words).answer
+
+puts "Size: #{answer.size}"
+puts "Answer: #{answer.join(" => ")}"
 
