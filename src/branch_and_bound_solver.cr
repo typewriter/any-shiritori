@@ -2,6 +2,9 @@
 # ref. https://ci.nii.ac.jp/naid/110002768734
 class BranchAndBoundSolver
   class Candidate
+    property x
+    getter x : Hash(String, Int32)
+
     def initialize(x : Hash(String, Int32), a : Hash(String, Array(String)))
       @x = x
       @A = a
@@ -44,6 +47,50 @@ class BranchAndBoundSolver
     end
   end
 
+  class RouteMaker
+    def self.make(x : Hash(String, Int32), a : Hash(String, Array(String)), sorted_V : Array(Char))
+      pp extract_all_cycle(x, sorted_V)
+    end
+
+    private def self.extract_all_cycle(x : Hash(String, Int32), sorted_V : Array(Char))
+      link = [] of String
+      d = sorted_V.map { |vi| sorted_V.map { |vj| x.has_key?("#{vj}#{vi}") ? x["#{vj}#{vi}"] : 0 }.sum }
+      k = 1
+      while d.max > 1
+        sorted_V.each_with_index { |v, i|
+          while (l = find_closed_path(v, x, k))
+            link << l
+            (l.size - 1).times { |i|
+              x["#{l[i]}#{l[i+1]}"] -= 1
+              d[sorted_V.index { |v| v == l[i] }.as(Int32)] -= 1
+            }
+          end
+        }
+        k = k + 1
+      end
+      [x, link]
+    end
+
+    private def self.find_closed_path(v : Char, x : Hash(String, Int32), k : Int32)
+      edges = x.select { |k, v| v > 0 }.map { |e| e[0] }
+      find_closed_path_recursively(v.to_s, edges, k)
+    end
+
+    private def self.find_closed_path_recursively(path : String, edges : Array(String), max_depth : Int32)
+      if path.size == max_depth + 1
+        return path if path[0] == path[-1]
+        return nil
+      end
+
+      edges.each { |edge|
+        if edge[0] == path[-1] && (path.size < 2 || !path[1..].includes?(edge[-1]))
+          value = find_closed_path_recursively("#{path}#{edge[-1]}", edges, max_depth)
+          return value if value
+        end
+      }
+    end
+  end
+
   def initialize(words : Array(String))
     @A = {} of String => Array(String)
     @V = Set(Char).new
@@ -57,6 +104,8 @@ class BranchAndBoundSolver
   end
 
   def answer
+    answer = solve
+    RouteMaker.make(answer.x, @A, sorted_V)
   end
 
   def solve
@@ -172,5 +221,5 @@ class BranchAndBoundSolver
 end
 
 words = File.read(ARGV[0]).chomp.split(/\r\n|\n|\r/)
-p BranchAndBoundSolver.new(words).solve
+p BranchAndBoundSolver.new(words).answer
 
