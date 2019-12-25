@@ -1,9 +1,12 @@
 require "option_parser"
 require "./*"
 
+clazz = BranchAndBoundSolver
+
 OptionParser.parse(ARGV) do |parser|
   parser.banner = "Usage: any_shiritori [FILE]"
   parser.on("-h", "--help", "Show this help") { puts parser; exit 0 }
+  parser.on("-sp", "--searchproblem", "Use search problem solver") { clazz = SearchProblemSolver }
 end
 
 words : Array(String)
@@ -13,11 +16,9 @@ else
   words = STDIN.each_line.map(&.to_s).to_a
 end
 
-shiritori = SearchProblemSolver.new(words)
+shiritori = clazz.new(words)
+answer    = shiritori.answer
 
-puts "Answers:"
-shiritori.answers.each { |e| puts "  #{e.tree_names.join(" -> ")}" }
-
-puts "Solves:"
-shiritori.solve.sort_by { |solve| solve.tree_names.size }.reverse.each { |e| puts "  #{e.tree_names.join(" -> ")}" }
+puts "Length: #{answer.size}"
+puts "Shiritori: #{answer.join(" => ")}"
 

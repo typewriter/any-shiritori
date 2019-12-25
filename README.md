@@ -1,26 +1,13 @@
 # any-shiritori
 
-しりとり (Shiritori)
+Find the longest shiritori (しりとり) from words
 
 ## Usage
 
 ```bash
 $ echo -e "scp\nls\nps\nssh\ntouch\nsort" | crystal src/any_shiritori.cr
-Answers:
-  ls -> scp -> ps -> sort -> touch
-Solves:
-  ls -> scp -> ps -> sort -> touch
-  ls -> scp -> ps -> ssh
-  scp -> ps -> sort -> touch
-  ps -> sort -> touch
-  ls -> sort -> touch
-  scp -> ps -> ssh
-  sort -> touch
-  ps -> ssh
-  ps -> scp
-  ls -> ssh
-  touch
-  ssh
+Length: 5
+Shiritori: ls => scp => ps => sort => touch
 ```
 
 ```bash
@@ -31,13 +18,30 @@ netstat
 ping
 traceroute
 $ crystal src/any_shiritori.cr words.txt
-Answers:
-  ip -> ping
-  netstat -> traceroute
-Solves:
-  netstat -> traceroute
-  ip -> ping
-  traceroute
-  ping
-  ifconfig
+Length: 2
+Shiritori: netstat => traceroute
 ```
+
+**Use search problem solver**
+
+Use the `-sp` option
+
+```bash
+$ echo -e "scp\nls\nps\nssh\ntouch\nsort" | crystal src/any_shiritori.cr -- -sp
+Searching...
+
+Size: 5
+Words: [ls -> scp -> ps -> sort -> touch]
+----------------------------------------------------------------------------
+Length: 5
+Shiritori: ls => scp => ps => sort => touch
+```
+
+## Reference
+
+[Solving the Longest Shiritori Problem](https://ci.nii.ac.jp/naid/110002768734)
+
+## License
+
+MIT
+

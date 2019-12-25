@@ -42,7 +42,7 @@ class SearchProblemSolver
   private def generate_tree(tree)
     if STDOUT.tty? && tree.tree_names.size > @longest_tree.size
       @longest_tree = tree.tree_names
-      puts "\e[2J\e[0;0HSearching...\n\nSize: #{@longest_tree.size}\nWords: [#{@longest_tree.join(" -> ")}]"
+      puts "\e[2J\e[0;0HSearching...\n\nSize: #{@longest_tree.size}\nWords: [#{@longest_tree.join(" -> ")}]\n" + "-" * 76
     end
 
     unused_words = @words - tree.tree_names
@@ -50,6 +50,12 @@ class SearchProblemSolver
     usable_words.each { |word| tree.append_child(word) }
     tree.children.each { |child| generate_tree(child) }
     tree
+  end
+
+  def answer
+    leaves = solve
+    max_depth = leaves.map { |leaf| leaf.tree_names.size }.max
+    leaves.find { |leaf| leaf.tree_names.size == max_depth }.as(Node).tree_names
   end
 
   def answers
