@@ -69,7 +69,6 @@ class BranchAndBoundSolver
 
       answer.shift
 
-      # validate
       (answer.size-1).times { |i|
         raise "Invalid answer: #{answer}" if answer[i][-1] != answer[i+1][0]
       }
@@ -81,18 +80,18 @@ class BranchAndBoundSolver
       available_links = links.select { |link| link.includes?(next_char) }
       available_links.each { |link| links.delete(link) }
 
-      answer = [] of String
+      path = [] of String
 
       available_links.each { |link|
         link_dup = "#{link}#{link[1..]}"
         offset   = link.index(next_char).not_nil!
         (link.size-1).times { |i|
-          answer << words["#{link_dup[i+offset]}#{link_dup[i+1+offset]}"].pop
-          answer += link_closed_path(answer[-1][-1], links, words)
+          path << words["#{link_dup[i+offset]}#{link_dup[i+1+offset]}"].pop
+          path += link_closed_path(path[-1][-1], links, words)
         }
       }
 
-      answer
+      path
     end
 
     private def self.extract_all_cycle(x : Hash(String, Int32), sorted_V : Array(Char))
@@ -156,8 +155,6 @@ class BranchAndBoundSolver
   end
 
   def solve
-    # Attempt RPk maximize
-
     try = 0
     answer = Candidate.new({} of String => Int32, @A)
     additional_constraints = [] of String
@@ -168,12 +165,7 @@ class BranchAndBoundSolver
       result = `glpsol -m #{tempfile.path} -o /dev/stdout`
       tempfile.delete
 
-      candidate = Candidate.new(generate_x(result), @A)
-
-      STDERR.puts "RP#{try}"
-      STDERR.puts " score:   #{candidate.score} (linked: #{candidate.linked_score})"
-      STDERR.puts " linked?: #{!candidate.separated?}"
-
+      candidate = Candidate.new(x_from_glpsol(result), @A)
       break if candidate.score == 0
 
       if !candidate.separated?
@@ -206,11 +198,6 @@ class BranchAndBoundSolver
       try += 1
     end
 
-    STDERR.puts "RPmax"
-    STDERR.puts " score:   #{answer.score} (linked: #{answer.linked_score})"
-    STDERR.puts " linked?: #{!answer.separated?}"
-    STDERR.puts
-
     answer
   end
 
@@ -218,7 +205,7 @@ class BranchAndBoundSolver
     @V.to_a.sort
   end
 
-  private def generate_x(result)
+  private def x_from_glpsol(result)
     x = {} of String => Int32
     v = sorted_V + ["^", "$"]
     result.each_line { |line|
@@ -267,10 +254,4 @@ class BranchAndBoundSolver
     model_text += "end;\n"
   end
 end
-
-words = File.read(ARGV[0]).chomp.split(/\r\n|\n|\r/)
-answer = BranchAndBoundSolver.new(words).answer
-
-puts "Size: #{answer.size}"
-puts "Answer: #{answer.join(" => ")}"
 
