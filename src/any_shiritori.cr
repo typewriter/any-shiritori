@@ -16,8 +16,10 @@ else
   words = STDIN.each_line.map(&.to_s).to_a
 end
 
-shiritori = clazz.new(words)
-answer    = shiritori.answer
+# Support Japanese shiritori rule
+normalizer = JpNormalizer.new(words)
+shiritori = clazz.new(normalizer.normalized_words)
+answer    = normalizer.recover(shiritori.answer)
 
 puts "Length: #{answer.size}"
 puts "Shiritori: #{answer.join(" => ")}"
