@@ -2,6 +2,11 @@
 
 Find the longest shiritori (しりとり) from words.
 
+## Requirements
+
+- [Crystal](https://crystal-lang.org/)
+- [GLPK](https://www.gnu.org/software/glpk/)
+
 ## Usage
 
 ```bash
